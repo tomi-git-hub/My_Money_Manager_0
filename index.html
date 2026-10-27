@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0f766e">
- <link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
 <title>My Money Manager</title>
 <style>
 :root{--p:#0f766e;--p2:#14b8a6;--bg:#f1f5f9;--tx:#0f172a;--mut:#64748b;--red:#dc2626;--grn:#16a34a}
@@ -16,6 +16,7 @@ label{font-size:14px;color:var(--mut)}
 .btn{width:100%;padding:15px;border:0;border-radius:12px;background:var(--p);color:#fff;font-weight:600;font-size:16px}
 .btn:disabled{opacity:.6}
 .btn.alt{background:#fff;color:var(--p);border:1px solid var(--p);margin-top:10px}
+#splash{position:fixed;inset:0;background:#0f766e;color:#fff;display:flex;align-items:center;justify-content:center;font:600 22px system-ui;z-index:99}
 #auth{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px;background:linear-gradient(160deg,var(--p),var(--p2))}
 #auth .box{background:#fff;border-radius:20px;padding:24px}
 #auth h1{margin:0 0 4px;font-size:26px}
@@ -43,7 +44,7 @@ h3{margin:18px 0 10px}
 .chips{display:flex;gap:8px;margin-bottom:14px}
 .chips button{flex:1;padding:10px;border-radius:20px;border:1px solid #cbd5e1;background:#fff}
 .chips button.on{background:var(--p);color:#fff;border-color:var(--p)}
-.link{background:none;border:0;color:var(--p);font-weight:600;padding:8px 0}
+.link{background:none;border:0;color:#fff;font-weight:600;font-size:16px;padding:8px 0}
 .fab{position:fixed;right:20px;bottom:84px;width:58px;height:58px;border-radius:50%;border:0;background:var(--p);color:#fff;font-size:32px;box-shadow:0 6px 16px rgba(0,0,0,.3)}
 nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid #e2e8f0}
 nav button{flex:1;padding:14px;border:0;background:none;color:var(--mut);font-weight:600}
@@ -55,7 +56,9 @@ nav button.on{color:var(--p)}
 </style></head>
 <body>
 
-<div id="auth">
+<div id="splash">My Money Manager</div>
+
+<div id="auth" hidden>
  <div class="box">
   <h1>My Money Manager</h1>
   <p class="mut">Your private loan book</p>
@@ -78,7 +81,7 @@ nav button.on{color:var(--p)}
   </section>
   <section id="v-detail" hidden><button class="link" data-act="back">← Back</button><div id="det"></div></section>
  </main>
- <button class="fab" data-act="add">+</button>
+ <button class="fab" id="fab" data-act="add">+</button>
  <nav><button data-v="home" class="on">Home</button><button data-v="loans">Loans</button></nav>
 
  <div id="sheet" class="sheet" hidden><div class="in">
@@ -127,7 +130,7 @@ const app = initializeApp({
 });
 const auth = getAuth(app), db = getDatabase(app);
 const $ = id => document.getElementById(id);
-let uid = null, loans = {}, pays = {}, filter = "all", openId = null, unsubs = [], saving = false;
+let uid = null, loans = {}, pays = {}, filter = "all", openId = null, unsubs = [], saving = false, cur = "home";
 
 const rs = n => "Rs. " + Number(n || 0).toLocaleString("en-PK");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -189,20 +192,51 @@ function renderDetail() {
      ${p.hasShot ? `<button class="shotbtn" data-act="shot" data-pid="${p.pid}">View Screenshot</button>` : ""}</div>`).join("") || `<p class="mut">No payments yet.</p>`}`;
 }
 
-function show(v) {
+/* Screens + Android back button */
+function setView(v) {
+  cur = v;
+  if (v !== "detail") openId = null;
   ["home", "loans", "detail"].forEach(x => $("v-" + x).hidden = x !== v);
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
-  if (v !== "detail") openId = null;
+  $("fab").hidden = v === "detail";
   window.scrollTo(0, 0);
 }
+function nav(v) {
+  if (v === cur) return;
+  history.pushState({ s: v, sh: 0 }, "");
+  setView(v);
+}
+function openSheet(id) {
+  history.pushState({ s: cur, sh: id }, "");
+  $(id).hidden = false;
+}
+function closeSheet(id) {
+  if (!$(id).hidden) history.back();
+}
+window.addEventListener("popstate", e => {
+  const st = e.state || { s: "home", sh: 0 };
+  ["sheet", "psheet", "vsheet"].forEach(i => $(i).hidden = st.sh !== i);
+  if ($("app").hidden) return;
+  let v = st.s;
+  if (v === "detail" && !openId) v = "loans";
+  setView(v);
+});
 
 function stop() { unsubs.forEach(u => u()); unsubs = []; }
 onAuthStateChanged(auth, user => {
+  $("splash").hidden = true;
   stop();
-  if (!user) { uid = null; loans = {}; pays = {}; $("app").hidden = true; $("auth").hidden = false; return; }
+  if (!user) {
+    uid = null; loans = {}; pays = {};
+    $("app").hidden = true; $("auth").hidden = false;
+    ["sheet", "psheet", "vsheet"].forEach(i => $(i).hidden = true);
+    return;
+  }
   uid = user.uid;
   $("who").textContent = user.email;
-  $("auth").hidden = true; $("app").hidden = false; show("home");
+  $("auth").hidden = true; $("app").hidden = false;
+  history.replaceState({ s: "home", sh: 0 }, "");
+  setView("home");
   unsubs.push(onValue(ref(db, `users/${uid}/loans`), s => { loans = s.val() || {}; render(); }));
   unsubs.push(onValue(ref(db, `users/${uid}/payments`), s => { pays = s.val() || {}; render(); }));
 });
@@ -216,7 +250,6 @@ const msgs = {
 };
 const authErr = e => $("err").textContent = msgs[e.code] || "Error: " + e.code;
 
-// Make the screenshot small (max 1000 px, about 100 KB)
 function shrink(file) {
   return new Promise((res, rej) => {
     const url = URL.createObjectURL(file), img = new Image();
@@ -248,7 +281,7 @@ async function savePayment() {
     const file = $("p-file").files[0];
     if (file) await set(ref(db, `users/${uid}/shots/${pref.key}`), await shrink(file));
     await set(pref, { amount, date, method, hasShot: !!file, createdAt: Date.now() });
-    $("psheet").hidden = true;
+    closeSheet("psheet");
   } catch (e) {
     err.textContent = "Could not save: " + (e.code || e.message);
   }
@@ -259,7 +292,7 @@ document.addEventListener("click", async e => {
   const f = e.target.closest("[data-f]");
   if (f) { filter = f.dataset.f; document.querySelectorAll("[data-f]").forEach(b => b.classList.toggle("on", b === f)); render(); return; }
   const v = e.target.closest("[data-v]");
-  if (v) { show(v.dataset.v); return; }
+  if (v) { nav(v.dataset.v); return; }
   const t = e.target.closest("[data-act]");
   if (!t) return;
   const act = t.dataset.act;
@@ -267,27 +300,27 @@ document.addEventListener("click", async e => {
   if (act === "login") signInWithEmailAndPassword(auth, $("email").value.trim(), $("pass").value).catch(authErr);
   if (act === "signup") createUserWithEmailAndPassword(auth, $("email").value.trim(), $("pass").value).catch(authErr);
   if (act === "logout") signOut(auth);
-  if (act === "add") { ["f-name", "f-amt", "f-note"].forEach(i => $(i).value = ""); $("f-date").value = today(); $("f-err").textContent = ""; $("sheet").hidden = false; }
-  if (act === "closesheet") $("sheet").hidden = true;
-  if (act === "open") { show("detail"); openId = t.dataset.id; renderDetail(); }
-  if (act === "back") show("loans");
+  if (act === "add") { ["f-name", "f-amt", "f-note"].forEach(i => $(i).value = ""); $("f-date").value = today(); $("f-err").textContent = ""; openSheet("sheet"); }
+  if (act === "closesheet") closeSheet("sheet");
+  if (act === "open") { openId = t.dataset.id; nav("detail"); renderDetail(); }
+  if (act === "back") history.back();
   if (act === "addpay") {
     const l = all().find(x => x.id === openId);
     $("p-info").textContent = l.name + " · Remaining " + rs(l.remaining);
     $("p-amt").value = ""; $("p-file").value = ""; $("p-method").value = "Online";
-    $("p-date").value = today(); $("p-err").textContent = ""; $("psheet").hidden = false;
+    $("p-date").value = today(); $("p-err").textContent = ""; openSheet("psheet");
   }
-  if (act === "closepay") $("psheet").hidden = true;
+  if (act === "closepay") closeSheet("psheet");
   if (act === "savepay") savePayment();
   if (act === "shot") {
-    $("v-body").textContent = "Loading..."; $("vsheet").hidden = false;
+    $("v-body").textContent = "Loading..."; openSheet("vsheet");
     try {
       const s = await get(ref(db, `users/${uid}/shots/${t.dataset.pid}`));
       if (s.exists()) { $("v-body").innerHTML = ""; const im = new Image(); im.src = s.val(); $("v-body").appendChild(im); }
       else $("v-body").textContent = "Screenshot not found.";
     } catch (er) { $("v-body").textContent = "Could not open. Check your internet."; }
   }
-  if (act === "closeshot") $("vsheet").hidden = true;
+  if (act === "closeshot") closeSheet("vsheet");
   if (act === "saveloan") {
     const name = $("f-name").value.trim(), amount = Math.round(Number($("f-amt").value)), date = $("f-date").value;
     if (!name) { $("f-err").textContent = "Please enter the name."; return; }
@@ -295,13 +328,13 @@ document.addEventListener("click", async e => {
     if (!date) { $("f-err").textContent = "Please choose the date."; return; }
     try {
       await push(ref(db, `users/${uid}/loans`), { name, amount, date, note: $("f-note").value.trim(), createdAt: Date.now() });
-      $("sheet").hidden = true;
+      closeSheet("sheet");
     } catch (er) { $("f-err").textContent = "Could not save: " + er.code; }
   }
 });
 $("q").addEventListener("input", render);
 </script>
- <script>
+<script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
 }
