@@ -3,6 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#0f766e">
+ <link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
 <title>My Money Manager</title>
 <style>
 :root{--p:#0f766e;--p2:#14b8a6;--bg:#f1f5f9;--tx:#0f172a;--mut:#64748b;--red:#dc2626;--grn:#16a34a}
@@ -299,5 +300,10 @@ document.addEventListener("click", async e => {
   }
 });
 $("q").addEventListener("input", render);
+</script>
+ <script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js"));
+}
 </script>
 </body></html>
