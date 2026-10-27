@@ -2,10 +2,66 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>My Money Manager</title>
+<title>Firebase Test</title>
+<style>
+body{font-family:sans-serif;padding:24px;max-width:420px;margin:auto}
+input,button{width:100%;padding:14px;margin:6px 0;font-size:16px;box-sizing:border-box}
+button{background:#0d9488;color:#fff;border:0;border-radius:8px}
+#msg{margin-top:16px;padding:12px;background:#eee;border-radius:8px;white-space:pre-wrap}
+</style>
 </head>
-<body style="font-family:sans-serif;text-align:center;padding:40px">
-<h1>My Money Manager</h1>
-<p>Test page is working.</p>
+<body>
+<h2>Firebase Test</h2>
+<input id="email" type="email" placeholder="Email">
+<input id="pass" type="password" placeholder="Password (6+ letters)">
+<button id="signup">Create account</button>
+<button id="login">Log in</button>
+<button id="logout">Log out</button>
+<div id="msg">Not tested yet.</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBSGWZlIRFUGj_e79B7YEYBHvFkZM3GbR8",
+  authDomain: "ai-app-2b2e4.firebaseapp.com",
+  databaseURL: "https://ai-app-2b2e4-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "ai-app-2b2e4",
+  storageBucket: "ai-app-2b2e4.firebasestorage.app",
+  messagingSenderId: "820879079109",
+  appId: "1:820879079109:web:6440087d12c14dd33922ac"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+const msg = document.getElementById("msg");
+const email = () => document.getElementById("email").value.trim();
+const pass = () => document.getElementById("pass").value;
+
+document.getElementById("signup").onclick = async () => {
+  try { await createUserWithEmailAndPassword(auth, email(), pass()); }
+  catch (e) { msg.textContent = "Error: " + e.code; }
+};
+document.getElementById("login").onclick = async () => {
+  try { await signInWithEmailAndPassword(auth, email(), pass()); }
+  catch (e) { msg.textContent = "Error: " + e.code; }
+};
+document.getElementById("logout").onclick = () => signOut(auth);
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { msg.textContent = "Logged out."; return; }
+  msg.textContent = "Logged in as " + user.email + "\nTesting database...";
+  try {
+    await set(ref(db, "users/" + user.uid + "/test"), "hello");
+    const snap = await get(ref(db, "users/" + user.uid + "/test"));
+    msg.textContent = "Logged in as " + user.email + "\nDatabase test: " + snap.val() + " (WORKS)";
+  } catch (e) {
+    msg.textContent = "Logged in, but database error: " + e.code;
+  }
+});
+</script>
 </body>
 </html>
