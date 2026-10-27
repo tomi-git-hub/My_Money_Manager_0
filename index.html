@@ -1,30 +1,101 @@
 <!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Firebase Test</title>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0f766e">
+<title>My Money Manager</title>
 <style>
-body{font-family:sans-serif;padding:24px;max-width:420px;margin:auto}
-input,button{width:100%;padding:14px;margin:6px 0;font-size:16px;box-sizing:border-box}
-button{background:#0d9488;color:#fff;border:0;border-radius:8px}
-#msg{margin-top:16px;padding:12px;background:#eee;border-radius:8px;white-space:pre-wrap}
-</style>
-</head>
+:root{--p:#0f766e;--p2:#14b8a6;--bg:#f1f5f9;--tx:#0f172a;--mut:#64748b;--red:#dc2626;--grn:#16a34a}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx)}
+[hidden]{display:none!important}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;width:100%;padding:14px;margin:6px 0 12px;border:1px solid #cbd5e1;border-radius:12px;background:#fff}
+label{font-size:14px;color:var(--mut)}
+.btn{width:100%;padding:15px;border:0;border-radius:12px;background:var(--p);color:#fff;font-weight:600;font-size:16px}
+.btn.alt{background:#fff;color:var(--p);border:1px solid var(--p);margin-top:10px}
+#auth{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:28px;background:linear-gradient(160deg,var(--p),var(--p2))}
+#auth .box{background:#fff;border-radius:20px;padding:24px}
+#auth h1{margin:0 0 4px;font-size:26px}
+#err{color:var(--red);font-size:14px;min-height:20px}
+header{background:linear-gradient(160deg,var(--p),var(--p2));color:#fff;padding:18px 18px 70px;display:flex;justify-content:space-between;align-items:center}
+header small{opacity:.8;display:block}
+header button{background:rgba(255,255,255,.2);color:#fff;border:0;padding:8px 14px;border-radius:20px}
+main{margin-top:-52px;padding:0 16px 110px}
+.hero{background:#fff;border-radius:20px;padding:20px;box-shadow:0 4px 14px rgba(0,0,0,.08);margin-bottom:14px}
+.hero small{color:var(--mut)}
+.hero b{display:block;font-size:32px;color:var(--red);margin-top:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+.stat{background:#fff;border-radius:16px;padding:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.stat small{color:var(--mut);display:block}
+.stat b{font-size:18px}
+h3{margin:18px 0 10px}
+.card{background:#fff;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.badge{font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600}
+.Pending{background:#fee2e2;color:var(--red)}
+.Paid{background:#dcfce7;color:var(--grn)}
+.bar{height:8px;background:#e2e8f0;border-radius:8px;margin:10px 0 6px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--p2)}
+.mut{color:var(--mut);font-size:14px}
+.chips{display:flex;gap:8px;margin-bottom:14px}
+.chips button{flex:1;padding:10px;border-radius:20px;border:1px solid #cbd5e1;background:#fff}
+.chips button.on{background:var(--p);color:#fff;border-color:var(--p)}
+.link{background:none;border:0;color:var(--p);font-weight:600;padding:8px 0}
+.fab{position:fixed;right:20px;bottom:84px;width:58px;height:58px;border-radius:50%;border:0;background:var(--p);color:#fff;font-size:32px;box-shadow:0 6px 16px rgba(0,0,0,.3)}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;border-top:1px solid #e2e8f0}
+nav button{flex:1;padding:14px;border:0;background:none;color:var(--mut);font-weight:600}
+nav button.on{color:var(--p)}
+#sheet{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;z-index:10}
+#sheet .in{background:#fff;width:100%;border-radius:20px 20px 0 0;padding:20px;max-height:90vh;overflow:auto}
+.pay{border-top:1px solid #e2e8f0;padding:10px 0}
+</style></head>
 <body>
-<h2>Firebase Test</h2>
-<input id="email" type="email" placeholder="Email">
-<input id="pass" type="password" placeholder="Password (6+ letters)">
-<button id="signup">Create account</button>
-<button id="login">Log in</button>
-<button id="logout">Log out</button>
-<div id="msg">Not tested yet.</div>
+
+<div id="auth">
+ <div class="box">
+  <h1>My Money Manager</h1>
+  <p class="mut">Your private loan book</p>
+  <label>Email</label><input id="email" type="email" autocomplete="email">
+  <label>Password (6+ letters)</label><input id="pass" type="password" autocomplete="current-password">
+  <div id="err"></div>
+  <button class="btn" data-act="login">Log in</button>
+  <button class="btn alt" data-act="signup">Create account</button>
+ </div>
+</div>
+
+<div id="app" hidden>
+ <header><div><small>Welcome</small><b id="who"></b></div><button data-act="logout">Log out</button></header>
+ <main>
+  <section id="v-home"><div id="dash"></div><h3>Recent loans</h3><div id="recent"></div></section>
+  <section id="v-loans" hidden>
+   <input id="q" placeholder="Search by person's name">
+   <div class="chips"><button data-f="all" class="on">All</button><button data-f="Pending">Pending</button><button data-f="Fully Paid">Fully Paid</button></div>
+   <div id="list"></div>
+  </section>
+  <section id="v-detail" hidden><button class="link" data-act="back">← Back</button><div id="det"></div></section>
+ </main>
+ <button class="fab" data-act="add">+</button>
+ <nav><button data-v="home" class="on">Home</button><button data-v="loans">Loans</button></nav>
+
+ <div id="sheet" hidden><div class="in">
+  <h3 style="margin-top:0">Add a Loan</h3>
+  <label>Person's name</label><input id="f-name">
+  <label>Amount borrowed (Rs.)</label><input id="f-amt" type="number" inputmode="numeric" min="1">
+  <label>Date borrowed</label><input id="f-date" type="date">
+  <label>Note (optional)</label><textarea id="f-note" rows="2"></textarea>
+  <div id="f-err" style="color:#dc2626;min-height:20px"></div>
+  <button class="btn" data-act="saveloan">Save Loan</button>
+  <button class="btn alt" data-act="closesheet">Cancel</button>
+ </div></div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-const firebaseConfig = {
+const app = initializeApp({
   apiKey: "AIzaSyBSGWZlIRFUGj_e79B7YEYBHvFkZM3GbR8",
   authDomain: "ai-app-2b2e4.firebaseapp.com",
   databaseURL: "https://ai-app-2b2e4-default-rtdb.asia-southeast1.firebasedatabase.app",
@@ -32,36 +103,121 @@ const firebaseConfig = {
   storageBucket: "ai-app-2b2e4.firebasestorage.app",
   messagingSenderId: "820879079109",
   appId: "1:820879079109:web:6440087d12c14dd33922ac"
-};
+});
+const auth = getAuth(app), db = getDatabase(app);
+const $ = id => document.getElementById(id);
+let uid = null, loans = {}, pays = {}, filter = "all", openId = null, unsubs = [];
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getDatabase(app);
-const msg = document.getElementById("msg");
-const email = () => document.getElementById("email").value.trim();
-const pass = () => document.getElementById("pass").value;
+const rs = n => "Rs. " + Number(n || 0).toLocaleString("en-PK");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDate = d => d ? new Date(d + "T00:00").toLocaleDateString("en-GB", {day:"numeric", month:"long", year:"numeric"}) : "";
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 
-document.getElementById("signup").onclick = async () => {
-  try { await createUserWithEmailAndPassword(auth, email(), pass()); }
-  catch (e) { msg.textContent = "Error: " + e.code; }
-};
-document.getElementById("login").onclick = async () => {
-  try { await signInWithEmailAndPassword(auth, email(), pass()); }
-  catch (e) { msg.textContent = "Error: " + e.code; }
-};
-document.getElementById("logout").onclick = () => signOut(auth);
+function calc(id, l) {
+  const list = Object.values(pays[id] || {});
+  const returned = list.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+  const remaining = Math.max(0, l.amount - returned);
+  return { returned, remaining, status: remaining <= 0 ? "Fully Paid" : "Pending", list };
+}
+const all = () => Object.entries(loans).map(([id, l]) => ({ id, ...l, ...calc(id, l) }))
+  .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0));
 
-onAuthStateChanged(auth, async (user) => {
-  if (!user) { msg.textContent = "Logged out."; return; }
-  msg.textContent = "Logged in as " + user.email + "\nTesting database...";
-  try {
-    await set(ref(db, "users/" + user.uid + "/test"), "hello");
-    const snap = await get(ref(db, "users/" + user.uid + "/test"));
-    msg.textContent = "Logged in as " + user.email + "\nDatabase test: " + snap.val() + " (WORKS)";
-  } catch (e) {
-    msg.textContent = "Logged in, but database error: " + e.code;
+function loanCard(l) {
+  const pct = l.amount ? Math.min(100, Math.round(l.returned / l.amount * 100)) : 0;
+  return `<div class="card" data-act="open" data-id="${l.id}">
+    <div class="row"><b>${esc(l.name)}</b><span class="badge ${l.status === "Pending" ? "Pending" : "Paid"}">${l.status}</span></div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="row mut"><span>Borrowed ${rs(l.amount)}</span><span>Left ${rs(l.remaining)}</span></div></div>`;
+}
+
+function render() {
+  const a = all();
+  const borrowed = a.reduce((s, l) => s + l.amount, 0);
+  const returned = a.reduce((s, l) => s + l.returned, 0);
+  const pend = a.filter(l => l.status === "Pending").length;
+  $("dash").innerHTML = `
+   <div class="hero"><small>Total still owed</small><b>${rs(borrowed - returned)}</b></div>
+   <div class="grid">
+    <div class="stat"><small>Total borrowed</small><b>${rs(borrowed)}</b></div>
+    <div class="stat"><small>Total returned</small><b>${rs(returned)}</b></div>
+    <div class="stat"><small>Pending loans</small><b>${pend}</b></div>
+    <div class="stat"><small>Fully paid loans</small><b>${a.length - pend}</b></div>
+    <div class="stat"><small>Unpaid records</small><b>${pend}</b></div>
+    <div class="stat"><small>All records</small><b>${a.length}</b></div>
+   </div>`;
+  $("recent").innerHTML = a.slice(0, 5).map(loanCard).join("") || `<p class="mut">No loans yet. Tap + to add one.</p>`;
+  const q = $("q").value.trim().toLowerCase();
+  const f = a.filter(l => (filter === "all" || l.status === filter) && l.name.toLowerCase().includes(q));
+  $("list").innerHTML = f.map(loanCard).join("") || `<p class="mut">No records found.</p>`;
+  if (openId) renderDetail();
+}
+
+function renderDetail() {
+  const l = all().find(x => x.id === openId);
+  if (!l) { $("det").innerHTML = "<p>Not found.</p>"; return; }
+  const pl = l.list.slice().sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+  $("det").innerHTML = `<div class="card">
+    <div class="row"><h2 style="margin:0">${esc(l.name)}</h2><span class="badge ${l.status === "Pending" ? "Pending" : "Paid"}">${l.status}</span></div>
+    <p class="mut">Original loan: <b style="color:#0f172a">${rs(l.amount)}</b><br>Date: ${fmtDate(l.date)}${l.note ? "<br>Note: " + esc(l.note) : ""}</p>
+    <div class="grid" style="margin:0"><div class="stat"><small>Returned</small><b>${rs(l.returned)}</b></div><div class="stat"><small>Remaining</small><b>${rs(l.remaining)}</b></div></div></div>
+    <h3>Payment history</h3>
+    ${pl.map((p, i) => `<div class="card"><b>Payment ${i + 1}</b><div class="mut">${fmtDate(p.date)} · ${esc(p.method)}</div><b>${rs(p.amount)}</b></div>`).join("") || `<p class="mut">No payments yet.</p>`}`;
+}
+
+function show(v) {
+  ["home", "loans", "detail"].forEach(x => $("v-" + x).hidden = x !== v);
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  if (v !== "detail") openId = null;
+  window.scrollTo(0, 0);
+}
+
+function stop() { unsubs.forEach(u => u()); unsubs = []; }
+onAuthStateChanged(auth, user => {
+  stop();
+  if (!user) { uid = null; loans = {}; pays = {}; $("app").hidden = true; $("auth").hidden = false; return; }
+  uid = user.uid;
+  $("who").textContent = user.email;
+  $("auth").hidden = true; $("app").hidden = false; show("home");
+  unsubs.push(onValue(ref(db, `users/${uid}/loans`), s => { loans = s.val() || {}; render(); }));
+  unsubs.push(onValue(ref(db, `users/${uid}/payments`), s => { pays = s.val() || {}; render(); }));
+});
+
+const msgs = {
+  "auth/invalid-credential": "Wrong email or password.",
+  "auth/email-already-in-use": "This email already has an account. Tap Log in.",
+  "auth/weak-password": "Password must be 6 or more letters.",
+  "auth/invalid-email": "Email is not correct.",
+  "auth/network-request-failed": "No internet."
+};
+const authErr = e => $("err").textContent = msgs[e.code] || "Error: " + e.code;
+
+document.addEventListener("click", async e => {
+  const f = e.target.closest("[data-f]");
+  if (f) { filter = f.dataset.f; document.querySelectorAll("[data-f]").forEach(b => b.classList.toggle("on", b === f)); render(); return; }
+  const v = e.target.closest("[data-v]");
+  if (v) { show(v.dataset.v); return; }
+  const t = e.target.closest("[data-act]");
+  if (!t) return;
+  const act = t.dataset.act;
+  $("err").textContent = "";
+  if (act === "login") signInWithEmailAndPassword(auth, $("email").value.trim(), $("pass").value).catch(authErr);
+  if (act === "signup") createUserWithEmailAndPassword(auth, $("email").value.trim(), $("pass").value).catch(authErr);
+  if (act === "logout") signOut(auth);
+  if (act === "add") { ["f-name", "f-amt", "f-note"].forEach(i => $(i).value = ""); $("f-date").value = today(); $("f-err").textContent = ""; $("sheet").hidden = false; }
+  if (act === "closesheet") $("sheet").hidden = true;
+  if (act === "open") { openId = t.dataset.id; show("detail"); openId = t.dataset.id; renderDetail(); }
+  if (act === "back") show("loans");
+  if (act === "saveloan") {
+    const name = $("f-name").value.trim(), amount = Math.round(Number($("f-amt").value)), date = $("f-date").value;
+    if (!name) { $("f-err").textContent = "Please enter the name."; return; }
+    if (!(amount > 0)) { $("f-err").textContent = "Please enter a correct amount."; return; }
+    if (!date) { $("f-err").textContent = "Please choose the date."; return; }
+    try {
+      await push(ref(db, `users/${uid}/loans`), { name, amount, date, note: $("f-note").value.trim(), createdAt: Date.now() });
+      $("sheet").hidden = true;
+    } catch (er) { $("f-err").textContent = "Could not save: " + er.code; }
   }
 });
+$("q").addEventListener("input", render);
 </script>
-</body>
-</html>
+</body></html>
