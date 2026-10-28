@@ -76,7 +76,15 @@ nav button.on{color:var(--p)}
 <div id="app" hidden>
  <header><div><small>Welcome</small><b id="who"></b></div><button data-act="logout">Log out</button></header>
  <main>
-  <section id="v-home"><div id="dash"></div><h3>Recent loans</h3><div id="recent"></div></section>
+  <section id="v-home">
+   <div id="dash"></div>
+   <h3>Recent loans</h3><div id="recent"></div>
+   <div class="card" style="margin-top:18px">
+    <b>Backup</b>
+    <p class="mut" id="bk-info" style="margin:6px 0 12px"></p>
+    <button class="btn" id="bk-btn" data-act="backup">Download Backup</button>
+   </div>
+  </section>
   <section id="v-loans" hidden>
    <input id="q" placeholder="Search by person's name">
    <div class="chips"><button data-f="all" class="on">All</button><button data-f="Pending">Pending</button><button data-f="Fully Paid">Fully Paid</button></div>
@@ -158,6 +166,14 @@ function loanCard(l) {
     <div class="row mut"><span>Borrowed ${rs(l.amount)}</span><span>Left ${rs(l.remaining)}</span></div></div>`;
 }
 
+function bkInfo() {
+  let d = "";
+  try { d = localStorage.getItem("mmm-last-backup") || ""; } catch (e) {}
+  $("bk-info").textContent = d
+    ? "Last backup: " + fmtDate(d) + ". Save a new one after big changes."
+    : "You have not saved a backup yet. Please save one now.";
+}
+
 function render() {
   const a = all();
   const borrowed = a.reduce((s, l) => s + l.amount, 0);
@@ -177,6 +193,7 @@ function render() {
   const q = $("q").value.trim().toLowerCase();
   const f = a.filter(l => (filter === "all" || l.status === filter) && l.name.toLowerCase().includes(q));
   $("list").innerHTML = f.map(loanCard).join("") || `<p class="mut">No records found.</p>`;
+  bkInfo();
   if (openId) renderDetail();
 }
 
@@ -301,7 +318,28 @@ async function savePayment() {
   } catch (e) {
     err.textContent = "Could not save: " + (e.code || e.message);
   }
-  saving = false; $("p-save").disabled = false; $("p-save").textContent = "Save Payment";
+  saving = false; $("p-save").disabled = false; $("p-save").textContent = old ? "Save Changes" : "Save Payment";
+}
+
+async function backup() {
+  const btn = $("bk-btn");
+  btn.disabled = true; btn.textContent = "Preparing...";
+  try {
+    const s = await get(ref(db, `users/${uid}/shots`));
+    const data = { app: "My Money Manager", savedAt: new Date().toISOString(), loans, payments: pays, screenshots: s.val() || {} };
+    const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "money-backup-" + today() + ".json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    try { localStorage.setItem("mmm-last-backup", today()); } catch (e) {}
+    bkInfo();
+    alert("Backup saved in your phone's Downloads folder.");
+  } catch (e) {
+    alert("Could not make the backup. Check your internet. " + (e.code || e.message));
+  }
+  btn.disabled = false; btn.textContent = "Download Backup";
 }
 
 document.addEventListener("click", async e => {
@@ -316,6 +354,7 @@ document.addEventListener("click", async e => {
   if (act === "login") signInWithEmailAndPassword(auth, $("email").value.trim(), $("pass").value).catch(authErr);
   if (act === "signup") createUserWithEmailAndPassword(auth, $("email").value.trim(), $("pass").value).catch(authErr);
   if (act === "logout") signOut(auth);
+  if (act === "backup") backup();
   if (act === "add") {
     editLoanId = null;
     $("s-title").textContent = "Add a Loan"; $("s-save").textContent = "Save Loan";
