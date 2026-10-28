@@ -35,9 +35,11 @@ main{margin-top:-52px;padding:0 16px 110px}
 h3{margin:18px 0 10px}
 .card{background:#fff;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.badge{font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600}
-.Pending{background:#fee2e2;color:var(--red)}
+.badge{font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;white-space:nowrap}
+.Pending,.Overdue{background:#fee2e2;color:var(--red)}
 .Paid{background:#dcfce7;color:var(--grn)}
+.Today{background:#fef3c7;color:#b45309}
+.Up{background:#dbeafe;color:#1d4ed8}
 .bar{height:8px;background:#e2e8f0;border-radius:8px;margin:10px 0 6px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--p2)}
 .mut{color:var(--mut);font-size:14px}
@@ -78,6 +80,7 @@ nav button.on{color:var(--p)}
  <main>
   <section id="v-home">
    <div id="dash"></div>
+   <h3>Reminders</h3><div id="rems"></div>
    <h3>Recent loans</h3><div id="recent"></div>
    <div class="card" style="margin-top:18px">
     <b>Backup</b>
@@ -119,6 +122,16 @@ nav button.on{color:var(--p)}
   <button class="btn alt" data-act="closepay">Cancel</button>
  </div></div>
 
+ <div id="rsheet" class="sheet" hidden><div class="in">
+  <h3 style="margin-top:0">Set Reminder</h3>
+  <p class="mut" id="r-info"></p>
+  <label>Reminder date</label><input id="r-date" type="date">
+  <label>Amount I plan to return (Rs.)</label><input id="r-amt" type="number" inputmode="numeric" min="1">
+  <div id="r-err" style="color:#dc2626;min-height:20px"></div>
+  <button class="btn" id="r-save" data-act="saverem">Save Reminder</button>
+  <button class="btn alt" data-act="closerem">Cancel</button>
+ </div></div>
+
  <div id="vsheet" class="sheet" hidden><div class="in">
   <div id="v-body" class="mut">Loading...</div>
   <button class="btn alt" data-act="closeshot">Close</button>
@@ -141,7 +154,8 @@ const app = initializeApp({
 });
 const auth = getAuth(app), db = getDatabase(app);
 const $ = id => document.getElementById(id);
-let uid = null, loans = {}, pays = {}, filter = "all", openId = null, unsubs = [], saving = false, cur = "home";
+const SHEETS = ["sheet", "psheet", "rsheet", "vsheet"];
+let uid = null, loans = {}, pays = {}, reminders = {}, filter = "all", openId = null, unsubs = [], saving = false, cur = "home";
 let editLoanId = null, editPayId = null;
 
 const rs = n => "Rs. " + Number(n || 0).toLocaleString("en-PK");
@@ -157,6 +171,27 @@ function calc(id, l) {
 }
 const all = () => Object.entries(loans).map(([id, l]) => ({ id, ...l, ...calc(id, l) }))
   .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0));
+
+/* Reminders */
+function remState(r) {
+  const l = loans[r.loanId];
+  if (!l || r.status === "Done") return "Done";
+  if (calc(r.loanId, l).status === "Fully Paid") return "Done";
+  const t = today();
+  return r.date < t ? "Overdue" : (r.date === t ? "Due today" : "Upcoming");
+}
+const remCls = s => ({ "Overdue": "Overdue", "Due today": "Today", "Upcoming": "Up", "Done": "Paid" }[s]);
+const remAll = () => Object.entries(reminders).filter(([, r]) => loans[r.loanId])
+  .map(([rid, r]) => ({ rid, ...r, state: remState(r), loanName: loans[r.loanId].name }));
+function remItem(r, showName) {
+  return `<div class="card">
+    <div class="row"><b>${showName ? esc(r.loanName) : "Plan to pay " + rs(r.amount)}</b><span class="badge ${remCls(r.state)}">${r.state}</span></div>
+    <div class="mut">${showName ? "Plan to pay " + rs(r.amount) + "<br>" : ""}Date: ${fmtDate(r.date)}</div>
+    <div class="acts">
+      ${r.state !== "Done" ? `<button class="mini" data-act="remdone" data-rid="${r.rid}">Mark Done</button>` : ""}
+      <button class="mini del" data-act="remdel" data-rid="${r.rid}">Delete</button>
+    </div></div>`;
+}
 
 function loanCard(l) {
   const pct = l.amount ? Math.min(100, Math.round(l.returned / l.amount * 100)) : 0;
@@ -189,6 +224,10 @@ function render() {
     <div class="stat"><small>Unpaid records</small><b>${pend}</b></div>
     <div class="stat"><small>All records</small><b>${a.length}</b></div>
    </div>`;
+  const act = remAll().filter(r => r.state !== "Done").sort((x, y) => x.date.localeCompare(y.date));
+  const due = act.filter(r => r.state !== "Upcoming").length;
+  $("rems").innerHTML = (due ? `<p style="color:#dc2626;font-weight:600;margin:0 0 10px">${due} reminder${due > 1 ? "s" : ""} need attention</p>` : "")
+    + (act.slice(0, 5).map(r => remItem(r, true)).join("") || `<p class="mut">No reminders. Open a loan and tap Set Reminder.</p>`);
   $("recent").innerHTML = a.slice(0, 5).map(loanCard).join("") || `<p class="mut">No loans yet. Tap + to add one.</p>`;
   const q = $("q").value.trim().toLowerCase();
   const f = a.filter(l => (filter === "all" || l.status === filter) && l.name.toLowerCase().includes(q));
@@ -201,13 +240,15 @@ function renderDetail() {
   const l = all().find(x => x.id === openId);
   if (!l) { $("det").innerHTML = "<p style='color:#fff'>Not found.</p>"; return; }
   const pl = l.list.slice().sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.createdAt || 0) - (b.createdAt || 0));
+  const rl = remAll().filter(r => r.loanId === l.id).sort((x, y) => x.date.localeCompare(y.date));
   $("det").innerHTML = `<div class="card">
     <div class="row"><h2 style="margin:0">${esc(l.name)}</h2><span class="badge ${l.status === "Pending" ? "Pending" : "Paid"}">${l.status}</span></div>
     <p class="mut">Original loan: <b style="color:#0f172a">${rs(l.amount)}</b><br>Date: ${fmtDate(l.date)}${l.note ? "<br>Note: " + esc(l.note) : ""}</p>
     <div class="grid" style="margin:0 0 12px"><div class="stat"><small>Returned</small><b>${rs(l.returned)}</b></div><div class="stat"><small>Remaining</small><b>${rs(l.remaining)}</b></div></div>
-    ${l.status === "Pending" ? `<button class="btn" data-act="addpay">Add Payment</button>` : `<p style="color:#16a34a;font-weight:600;margin:0">✓ Fully paid</p>`}
+    ${l.status === "Pending" ? `<button class="btn" data-act="addpay">Add Payment</button><button class="btn alt" data-act="addrem">Set Reminder</button>` : `<p style="color:#16a34a;font-weight:600;margin:0">✓ Fully paid</p>`}
     <div class="acts"><button class="mini" data-act="editloan">Edit Loan</button><button class="mini del" data-act="delloan">Delete Loan</button></div>
    </div>
+   ${rl.length ? `<h3>Reminders</h3>${rl.map(r => remItem(r, false)).join("")}` : ""}
    <h3>Payment history</h3>
    ${pl.map((p, i) => `<div class="card"><div class="row"><b>Payment ${i + 1}</b><b>${rs(p.amount)}</b></div>
      <div class="mut">Date: ${fmtDate(p.date)}<br>Method: ${esc(p.method)}</div>
@@ -241,7 +282,7 @@ function closeSheet(id) {
 }
 window.addEventListener("popstate", e => {
   const st = e.state || { s: "home", sh: 0 };
-  ["sheet", "psheet", "vsheet"].forEach(i => $(i).hidden = st.sh !== i);
+  SHEETS.forEach(i => $(i).hidden = st.sh !== i);
   if ($("app").hidden) return;
   let v = st.s;
   if (v === "detail" && !openId) v = "loans";
@@ -253,9 +294,9 @@ onAuthStateChanged(auth, user => {
   $("splash").hidden = true;
   stop();
   if (!user) {
-    uid = null; loans = {}; pays = {};
+    uid = null; loans = {}; pays = {}; reminders = {};
     $("app").hidden = true; $("auth").hidden = false;
-    ["sheet", "psheet", "vsheet"].forEach(i => $(i).hidden = true);
+    SHEETS.forEach(i => $(i).hidden = true);
     return;
   }
   uid = user.uid;
@@ -265,6 +306,7 @@ onAuthStateChanged(auth, user => {
   setView("home");
   unsubs.push(onValue(ref(db, `users/${uid}/loans`), s => { loans = s.val() || {}; render(); }));
   unsubs.push(onValue(ref(db, `users/${uid}/payments`), s => { pays = s.val() || {}; render(); }));
+  unsubs.push(onValue(ref(db, `users/${uid}/reminders`), s => { reminders = s.val() || {}; render(); }));
 });
 
 const msgs = {
@@ -321,12 +363,31 @@ async function savePayment() {
   saving = false; $("p-save").disabled = false; $("p-save").textContent = old ? "Save Changes" : "Save Payment";
 }
 
+async function saveReminder() {
+  if (saving) return;
+  const err = $("r-err"); err.textContent = "";
+  const l = all().find(x => x.id === openId);
+  if (!l) return;
+  const date = $("r-date").value, amount = Math.round(Number($("r-amt").value));
+  if (!date) { err.textContent = "Please choose the reminder date."; return; }
+  if (!(amount > 0)) { err.textContent = "Please enter a correct amount."; return; }
+  if (amount > l.remaining) { err.textContent = "Amount is more than the remaining " + rs(l.remaining) + "."; return; }
+  saving = true; $("r-save").disabled = true; $("r-save").textContent = "Saving...";
+  try {
+    await push(ref(db, `users/${uid}/reminders`), { loanId: l.id, name: l.name, date, amount, status: "Active", createdAt: Date.now() });
+    closeSheet("rsheet");
+  } catch (e) {
+    err.textContent = "Could not save: " + (e.code || e.message);
+  }
+  saving = false; $("r-save").disabled = false; $("r-save").textContent = "Save Reminder";
+}
+
 async function backup() {
   const btn = $("bk-btn");
   btn.disabled = true; btn.textContent = "Preparing...";
   try {
     const s = await get(ref(db, `users/${uid}/shots`));
-    const data = { app: "My Money Manager", savedAt: new Date().toISOString(), loans, payments: pays, screenshots: s.val() || {} };
+    const data = { app: "My Money Manager", savedAt: new Date().toISOString(), loans, payments: pays, reminders, screenshots: s.val() || {} };
     const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -374,6 +435,7 @@ document.addEventListener("click", async e => {
     u[`users/${uid}/loans/${l.id}`] = null;
     u[`users/${uid}/payments/${l.id}`] = null;
     l.list.forEach(p => { u[`users/${uid}/shots/${p.pid}`] = null; });
+    Object.entries(reminders).forEach(([rid, r]) => { if (r.loanId === l.id) u[`users/${uid}/reminders/${rid}`] = null; });
     try { await update(ref(db), u); history.back(); }
     catch (er) { alert("Could not delete: " + (er.code || er.message)); }
   }
@@ -404,6 +466,22 @@ document.addEventListener("click", async e => {
     u[`users/${uid}/payments/${openId}/${pid}`] = null;
     u[`users/${uid}/shots/${pid}`] = null;
     try { await update(ref(db), u); }
+    catch (er) { alert("Could not delete: " + (er.code || er.message)); }
+  }
+  if (act === "addrem") {
+    const l = all().find(x => x.id === openId); if (!l) return;
+    $("r-info").textContent = l.name + " · Remaining " + rs(l.remaining);
+    $("r-date").value = today(); $("r-amt").value = ""; $("r-err").textContent = ""; openSheet("rsheet");
+  }
+  if (act === "closerem") closeSheet("rsheet");
+  if (act === "saverem") saveReminder();
+  if (act === "remdone") {
+    try { await update(ref(db, `users/${uid}/reminders/${t.dataset.rid}`), { status: "Done" }); }
+    catch (er) { alert("Could not update: " + (er.code || er.message)); }
+  }
+  if (act === "remdel") {
+    if (!confirm("Delete this reminder?")) return;
+    try { await remove(ref(db, `users/${uid}/reminders/${t.dataset.rid}`)); }
     catch (er) { alert("Could not delete: " + (er.code || er.message)); }
   }
   if (act === "closepay") closeSheet("psheet");
