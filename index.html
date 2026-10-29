@@ -13,6 +13,7 @@ body{margin:0;font-family:system-ui,sans-serif;background:var(--bg);color:var(--
 button{font:inherit;cursor:pointer}
 input,select,textarea{font:inherit;width:100%;padding:14px;margin:6px 0 12px;border:1px solid #cbd5e1;border-radius:12px;background:#fff}
 label{font-size:14px;color:var(--mut)}
+a{color:var(--p);font-weight:600}
 .btn{width:100%;padding:15px;border:0;border-radius:12px;background:var(--p);color:#fff;font-weight:600;font-size:16px}
 .btn:disabled{opacity:.6}
 .btn.alt{background:#fff;color:var(--p);border:1px solid var(--p);margin-top:10px}
@@ -34,17 +35,21 @@ main{margin-top:-52px;padding:0 16px 110px}
 .stat b{font-size:18px}
 h3{margin:18px 0 10px}
 .card{background:#fff;border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.card.prom{border-left:7px solid var(--pc,#14b8a6)}
 .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .badge{font-size:12px;padding:4px 10px;border-radius:20px;font-weight:600;white-space:nowrap}
-.Pending,.Overdue{background:#fee2e2;color:var(--red)}
-.Paid{background:#dcfce7;color:var(--grn)}
+.Pending,.Overdue,.pr{background:#fee2e2;color:var(--red)}
+.Paid,.pg{background:#dcfce7;color:var(--grn)}
 .Today{background:#fef3c7;color:#b45309}
 .Up{background:#dbeafe;color:#1d4ed8}
+.py{background:#fef9c3;color:#a16207}
+.po{background:#ffedd5;color:#c2410c}
+.pd{background:#7f1d1d;color:#fff}
 .bar{height:8px;background:#e2e8f0;border-radius:8px;margin:10px 0 6px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--p2)}
 .mut{color:var(--mut);font-size:14px}
-.chips{display:flex;gap:8px;margin-bottom:14px}
-.chips button{flex:1;padding:10px;border-radius:20px;border:1px solid #cbd5e1;background:#fff}
+.chips{display:flex;gap:6px;margin-bottom:14px}
+.chips button{flex:1;padding:10px 2px;border-radius:20px;border:1px solid #cbd5e1;background:#fff;font-size:13px}
 .chips button.on{background:var(--p);color:#fff;border-color:var(--p)}
 .link{background:none;border:0;color:#fff;font-weight:600;font-size:16px;padding:8px 0}
 .fab{position:fixed;right:20px;bottom:84px;width:58px;height:58px;border-radius:50%;border:0;background:var(--p);color:#fff;font-size:32px;box-shadow:0 6px 16px rgba(0,0,0,.3)}
@@ -58,6 +63,7 @@ nav button.on{color:var(--p)}
 .acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
 .mini{background:#fff;border:1px solid #cbd5e1;color:var(--tx);border-radius:20px;padding:7px 14px;font-weight:600;font-size:14px}
 .mini.del{color:var(--red);border-color:#fca5a5}
+.promobox{background:#f0fdfa;border:1px solid #99f6e4;border-radius:12px;padding:12px 12px 0;margin-bottom:12px}
 </style></head>
 <body>
 
@@ -72,6 +78,7 @@ nav button.on{color:var(--p)}
   <div id="err"></div>
   <button class="btn" data-act="login">Log in</button>
   <button class="btn alt" data-act="signup">Create account</button>
+  <p class="mut" style="text-align:center;margin:16px 0 0"><a href="policy.html">Privacy and Terms</a></p>
  </div>
 </div>
 
@@ -87,10 +94,11 @@ nav button.on{color:var(--p)}
     <p class="mut" id="bk-info" style="margin:6px 0 12px"></p>
     <button class="btn" id="bk-btn" data-act="backup">Download Backup</button>
    </div>
+   <p class="mut" style="text-align:center"><a href="policy.html">Privacy and Terms</a></p>
   </section>
   <section id="v-loans" hidden>
    <input id="q" placeholder="Search by person's name">
-   <div class="chips"><button data-f="all" class="on">All</button><button data-f="Pending">Pending</button><button data-f="Fully Paid">Fully Paid</button></div>
+   <div class="chips"><button data-f="all" class="on">All</button><button data-f="Promise">Promise</button><button data-f="Pending">Pending</button><button data-f="Fully Paid">Fully Paid</button></div>
    <div id="list"></div>
   </section>
   <section id="v-detail" hidden><button class="link" data-act="back">← Back</button><div id="det"></div></section>
@@ -104,6 +112,14 @@ nav button.on{color:var(--p)}
   <label>Amount borrowed (Rs.)</label><input id="f-amt" type="number" inputmode="numeric" min="1">
   <label>Date borrowed</label><input id="f-date" type="date">
   <label>Note (optional)</label><textarea id="f-note" rows="2"></textarea>
+  <div class="promobox">
+   <label>Do you have a promise date to give money back?</label>
+   <select id="f-prom"><option value="no">No</option><option value="yes">Yes</option></select>
+   <div id="f-promwrap" hidden>
+    <label>On which date will you give the money back?</label>
+    <input id="f-pdate" type="date">
+   </div>
+  </div>
   <div id="f-err" style="color:#dc2626;min-height:20px"></div>
   <button class="btn" id="s-save" data-act="saveloan">Save Loan</button>
   <button class="btn alt" data-act="closesheet">Cancel</button>
@@ -162,6 +178,9 @@ const rs = n => "Rs. " + Number(n || 0).toLocaleString("en-PK");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmtDate = d => d ? new Date(d + "T00:00").toLocaleDateString("en-GB", {day:"numeric", month:"long", year:"numeric"}) : "";
 const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+/* Today's date in Pakistan time (so deadlines never move by one day) */
+const pkToday = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Karachi" });
+const dayNum = s => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d) / 86400000; };
 
 function calc(id, l) {
   const list = Object.entries(pays[id] || {}).map(([pid, p]) => ({ pid, ...p }));
@@ -171,6 +190,20 @@ function calc(id, l) {
 }
 const all = () => Object.entries(loans).map(([id, l]) => ({ id, ...l, ...calc(id, l) }))
   .sort((a, b) => (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0));
+
+/* Promise date: colour and words */
+function promise(l) {
+  if (!l.promiseDate) return null;
+  if (l.status === "Fully Paid") return { txt: "PAID", cls: "pg", color: "#16a34a" };
+  const d = dayNum(l.promiseDate) - dayNum(pkToday());
+  if (d < 0) return { txt: "OVERDUE BY " + (-d) + (d === -1 ? " DAY" : " DAYS"), cls: "pd", color: "#7f1d1d" };
+  if (d === 0) return { txt: "DUE TODAY", cls: "pr", color: "#dc2626" };
+  if (d === 1) return { txt: "DUE TOMORROW", cls: "pr", color: "#dc2626" };
+  if (d === 2) return { txt: "2 DAYS LEFT", cls: "pr", color: "#dc2626" };
+  if (d === 3) return { txt: "3 DAYS LEFT", cls: "po", color: "#f97316" };
+  if (d <= 7) return { txt: d + " DAYS LEFT", cls: "py", color: "#eab308" };
+  return { txt: d + " DAYS LEFT", cls: "pg", color: "#16a34a" };
+}
 
 /* Reminders */
 function remState(r) {
@@ -195,8 +228,10 @@ function remItem(r, showName) {
 
 function loanCard(l) {
   const pct = l.amount ? Math.min(100, Math.round(l.returned / l.amount * 100)) : 0;
-  return `<div class="card" data-act="open" data-id="${l.id}">
+  const p = promise(l);
+  return `<div class="card${p ? " prom" : ""}" ${p ? `style="--pc:${p.color}"` : ""} data-act="open" data-id="${l.id}">
     <div class="row"><b>${esc(l.name)}</b><span class="badge ${l.status === "Pending" ? "Pending" : "Paid"}">${l.status}</span></div>
+    ${p ? `<div class="row" style="margin-top:8px"><span class="mut">📅 Promise: ${fmtDate(l.promiseDate)}</span><span class="badge ${p.cls}">${p.txt}</span></div>` : ""}
     <div class="bar"><i style="width:${pct}%"></i></div>
     <div class="row mut"><span>Borrowed ${rs(l.amount)}</span><span>Left ${rs(l.remaining)}</span></div></div>`;
 }
@@ -230,7 +265,7 @@ function render() {
     + (act.slice(0, 5).map(r => remItem(r, true)).join("") || `<p class="mut">No reminders. Open a loan and tap Set Reminder.</p>`);
   $("recent").innerHTML = a.slice(0, 5).map(loanCard).join("") || `<p class="mut">No loans yet. Tap + to add one.</p>`;
   const q = $("q").value.trim().toLowerCase();
-  const f = a.filter(l => (filter === "all" || l.status === filter) && l.name.toLowerCase().includes(q));
+  const f = a.filter(l => (filter === "all" || (filter === "Promise" ? !!l.promiseDate : l.status === filter)) && l.name.toLowerCase().includes(q));
   $("list").innerHTML = f.map(loanCard).join("") || `<p class="mut">No records found.</p>`;
   bkInfo();
   if (openId) renderDetail();
@@ -241,9 +276,11 @@ function renderDetail() {
   if (!l) { $("det").innerHTML = "<p style='color:#fff'>Not found.</p>"; return; }
   const pl = l.list.slice().sort((a, b) => (a.date || "").localeCompare(b.date || "") || (a.createdAt || 0) - (b.createdAt || 0));
   const rl = remAll().filter(r => r.loanId === l.id).sort((x, y) => x.date.localeCompare(y.date));
-  $("det").innerHTML = `<div class="card">
+  const p = promise(l);
+  $("det").innerHTML = `<div class="card${p ? " prom" : ""}" ${p ? `style="--pc:${p.color}"` : ""}>
     <div class="row"><h2 style="margin:0">${esc(l.name)}</h2><span class="badge ${l.status === "Pending" ? "Pending" : "Paid"}">${l.status}</span></div>
     <p class="mut">Original loan: <b style="color:#0f172a">${rs(l.amount)}</b><br>Date: ${fmtDate(l.date)}${l.note ? "<br>Note: " + esc(l.note) : ""}</p>
+    ${p ? `<div class="row" style="margin-bottom:12px"><span>📅 Promise: <b>${fmtDate(l.promiseDate)}</b></span><span class="badge ${p.cls}">${p.txt}</span></div>` : ""}
     <div class="grid" style="margin:0 0 12px"><div class="stat"><small>Returned</small><b>${rs(l.returned)}</b></div><div class="stat"><small>Remaining</small><b>${rs(l.remaining)}</b></div></div>
     ${l.status === "Pending" ? `<button class="btn" data-act="addpay">Add Payment</button><button class="btn alt" data-act="addrem">Set Reminder</button>` : `<p style="color:#16a34a;font-weight:600;margin:0">✓ Fully paid</p>`}
     <div class="acts"><button class="mini" data-act="editloan">Edit Loan</button><button class="mini del" data-act="delloan">Delete Loan</button></div>
@@ -403,6 +440,10 @@ async function backup() {
   btn.disabled = false; btn.textContent = "Download Backup";
 }
 
+document.addEventListener("change", e => {
+  if (e.target.id === "f-prom") $("f-promwrap").hidden = e.target.value !== "yes";
+});
+
 document.addEventListener("click", async e => {
   const f = e.target.closest("[data-f]");
   if (f) { filter = f.dataset.f; document.querySelectorAll("[data-f]").forEach(b => b.classList.toggle("on", b === f)); render(); return; }
@@ -419,13 +460,16 @@ document.addEventListener("click", async e => {
   if (act === "add") {
     editLoanId = null;
     $("s-title").textContent = "Add a Loan"; $("s-save").textContent = "Save Loan";
-    ["f-name", "f-amt", "f-note"].forEach(i => $(i).value = ""); $("f-date").value = today(); $("f-err").textContent = ""; openSheet("sheet");
+    ["f-name", "f-amt", "f-note", "f-pdate"].forEach(i => $(i).value = "");
+    $("f-prom").value = "no"; $("f-promwrap").hidden = true;
+    $("f-date").value = today(); $("f-err").textContent = ""; openSheet("sheet");
   }
   if (act === "editloan") {
     const l = all().find(x => x.id === openId); if (!l) return;
     editLoanId = l.id;
     $("s-title").textContent = "Edit Loan"; $("s-save").textContent = "Save Changes";
     $("f-name").value = l.name; $("f-amt").value = l.amount; $("f-date").value = l.date; $("f-note").value = l.note || "";
+    $("f-prom").value = l.promiseDate ? "yes" : "no"; $("f-promwrap").hidden = !l.promiseDate; $("f-pdate").value = l.promiseDate || "";
     $("f-err").textContent = ""; openSheet("sheet");
   }
   if (act === "delloan") {
@@ -500,14 +544,19 @@ document.addEventListener("click", async e => {
     if (!name) { $("f-err").textContent = "Please enter the name."; return; }
     if (!(amount > 0)) { $("f-err").textContent = "Please enter a correct amount."; return; }
     if (!date) { $("f-err").textContent = "Please choose the date."; return; }
+    const hasProm = $("f-prom").value === "yes", pdate = $("f-pdate").value;
+    if (hasProm && !pdate) { $("f-err").textContent = "Please choose the promise date."; return; }
+    if (hasProm && pdate < date) { $("f-err").textContent = "Promise date cannot be before the borrowed date."; return; }
     const note = $("f-note").value.trim();
     try {
       if (editLoanId) {
         const l = all().find(x => x.id === editLoanId);
         if (l && amount < l.returned) { $("f-err").textContent = "Amount cannot be less than the " + rs(l.returned) + " already returned."; return; }
-        await update(ref(db, `users/${uid}/loans/${editLoanId}`), { name, amount, date, note });
+        await update(ref(db, `users/${uid}/loans/${editLoanId}`), { name, amount, date, note, promiseDate: hasProm ? pdate : null });
       } else {
-        await push(ref(db, `users/${uid}/loans`), { name, amount, date, note, createdAt: Date.now() });
+        const data = { name, amount, date, note, createdAt: Date.now() };
+        if (hasProm) data.promiseDate = pdate;
+        await push(ref(db, `users/${uid}/loans`), data);
       }
       closeSheet("sheet");
     } catch (er) { $("f-err").textContent = "Could not save: " + (er.code || er.message); }
